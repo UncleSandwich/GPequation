@@ -21,11 +21,12 @@
 #define NZ 625         /* the total number of points along z-direction */
 #define ZLEN 32.0       /* the range (length) of function */
 
-#define LIMIT 1.6e-7   /* the threshold value for comparison  */
+#define LIMIT 1.5e-7   /* the threshold value for comparison  */
 #define PRINT 100000     /* the number of rounds to output the function values  */
 #define BREAK 50000000    /* used to prevent the dead loop */
 
-double dt = 0.00000001;  /* imaginary time iteration dt may be equal to Dz*Dz */
+double dt = 0.0000001;  /* imaginary time iteration dt may be equal to Dz*Dz */
+const double t = 0.0000001;
 
 const double Dz = ZLEN / (NZ - 1.);  /* the spacing of points */
 const double Zmid = (NZ - 1.) / 2;   /* the middle point */
@@ -45,9 +46,9 @@ double gini = 10.0; // the initial value of g
 double gup = 10.0; // the upbound value of g
 double ginter = 1.0; // the interval of the loop of g
 
-double ini_val = 8.0;   /* the initial value of lamda */
-double upbound = 10.0;  /* the upbound value of lamda */
-double interval = 0.1;    /* the interval of the loop of lamda */
+double ini_val = 9.0;   /* the initial value of lamda */
+double upbound = 9.1;  /* the upbound value of lamda */
+double interval = 0.01;    /* the interval of the loop of lamda */
 
 
 /* Declare functions */
@@ -73,7 +74,6 @@ int main()
 	//energy_cal();    /* calculate the ground state energy of this initial wave function*/
 	/*save_energy();   /* save the initial energy */
 	
-	random_gener();
 	
         for(g = gini; g <= gup; g += ginter)
 	{
@@ -130,15 +130,19 @@ void random_gener()
 /* function to create the initial wave function, Guassian form */
 void ini_wave()
 {
-	//double C = pow((1. / PI), 0.25); /* define the constant coefficient in guassian function*/
+	double C = pow((1. / PI), 0.25); /* define the constant coefficient in guassian function*/
 	double z;
 	int i;
 
 	//srand((unsigned)time(NULL));
 	
-	//printf("%f %f %f\n", a[0], b[0], c[0]);
-		/*pb_r[i] = C*exp(-0.5*z*z/10);
-		pb_i[i] = C*exp(-0.5*z*z/10);*/
+	printf("%f %f\n", a[0], b[0]);
+	/*for (i = 0; i < NZ; i++)
+	{
+		z = (i - Zmid)*Dz;
+		pb_r[i] = C*exp(-0.5*z*z / 10);
+		pb_i[i] = C*exp(-0.5*z*z / 10);
+	}*/
 	if (w == 0)
 	{
 		for (i = 0; i<NZ; i++)
@@ -249,15 +253,6 @@ void save_result()
 	fprintf(fp, "%f   %12.11f  %f \n", lamda, energy, g);
 	fclose(fp);
 	
-	
-	strcpy(file, "a and b");
-        strcat(file, ".dat");
-        /*input the value of energies */
-        fp = fopen(file, "a");
-        fprintf(fp, "%f   %f  %f  %f  %f  %f \n", a[0], a[1], b[0], b[1], lamda, g);
-        fclose(fp);
-
-
 }
 /*--------------------------------------------------------------------------*/
 
@@ -278,9 +273,13 @@ void wave_func()
 	for (lamda = ini_val; lamda < upbound; lamda += interval)
 	{
 		round = 1;
+		dt = 0.0000001;  /* imaginary time iteration dt may be equal to Dz*Dz */
 		j = 0;
 		w = 0;
 		w = (int) lamda % 2; 
+
+		random_gener();
+
 		ini_wave();
 		do{
 			tem_energy = energy; /* record the energy */
@@ -327,7 +326,8 @@ void wave_func()
 			/* decide whether to output the temporary results according to the numbeer of rounds */
 			if (round % PRINT == 0)
 			{
-				dt += 0.000000001; //As the evolution proceeds, the iteration time is increasing
+				if (dt <= t*500)
+					dt += 0.1*t; //As the evolution proceeds, the iteration time is increasing
 				printf("round=%5d	%12.11f	%e	%e  %f\n", round, energy, diff_energy, diff_wavefunc, lamda);
 			}
 			/* decide whether to break the loop */
@@ -340,17 +340,23 @@ void wave_func()
 			if ( fabs(diff_wavefunc - LIMIT) < 1.0e-9)
 				j++;
 			round++;
-		} while (j != 20000 && diff_wavefunc > LIMIT*0.5);
+		} while (j != 2000 && diff_wavefunc > LIMIT);
 
-		/*if (diff_wavefunc < LIMIT)
-		{*/
-			//printf("round=%5d lamda=%f energy=%12.8f\n", round, lamda, energy);
-			/* save the results: energy and wave function */
-			save_result();
-			save_func();
-		//}
+		
+		/* save the results: energy and wave function */
+		save_result();
+		save_func();
 
-
+		/* save the results: temporary results */
+		char file[60]; 
+		FILE *fp;		
+		strcpy(file, "result.txt");
+		fp = fopen(file, "a");
+		fprintf(fp, "NZ=%d, ZLEN=%f, LIMIT=%d, PRINT=%d, BREAK=%d, \n", NZ, ZLEN, LIMIT, PRINT, BREAK);
+		fprintf(fp, "round=%d, j=%d, t=%e, dt=%e,\n", round,j,t,dt);
+		fprintf(fp, " a[0]=%f  a[1]=%f  b[0]=%f  b[1]=%f,  lamda=%f,  g=%f \n", a[0], a[1], b[0], b[1], lamda, g);
+		fprintf(fp, "energy=%e, diff_energy=%e, diff_wavefunc=%e\n\n", energy, diff_energy, diff_wavefunc);
+		fclose(fp);
 	}
 
 
