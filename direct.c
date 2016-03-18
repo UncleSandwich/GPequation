@@ -21,7 +21,7 @@
 #define NZ 625         /* the total number of points along z-direction */
 #define ZLEN 32.0       /* the range (length) of function */
 
-#define LIMIT 1.5e-7   /* the threshold value for comparison  */
+#define LIMIT 2.0e-7   /* the threshold value for comparison  */
 #define PRINT 100000     /* the number of rounds to output the function values  */
 #define BREAK 50000000    /* used to prevent the dead loop */
 
@@ -38,7 +38,6 @@ double pb_r[NZ], pb_i[NZ]; /* the real part and the imaginary part of wave funct
 double pb[NZ]; // The probability of wave function
 double lamda;    /* the parameter that used to find the excited states */
 double a[2],b[2];//,c[2]; // Three random arrays
-int w; //w=0 or 1 to determine calculating even or odd
 
 //The variables shall be controled
 double g;   /* a constant, g = 4*pi*hbar^2*a_s/m , in BEC problem */
@@ -47,7 +46,7 @@ double gup = 10.0; // the upbound value of g
 double ginter = 1.0; // the interval of the loop of g
 
 double ini_val = 9.0;   /* the initial value of lamda */
-double upbound = 9.1;  /* the upbound value of lamda */
+double upbound = 9.5;  /* the upbound value of lamda */
 double interval = 0.01;    /* the interval of the loop of lamda */
 
 
@@ -132,6 +131,7 @@ void ini_wave()
 {
 	double C = pow((1. / PI), 0.25); /* define the constant coefficient in guassian function*/
 	double z;
+	double w; 
 	int i;
 
 	//srand((unsigned)time(NULL));
@@ -143,7 +143,7 @@ void ini_wave()
 		pb_r[i] = C*exp(-0.5*z*z / 10);
 		pb_i[i] = C*exp(-0.5*z*z / 10);
 	}*/
-	if (w == 0)
+	/*if (w == 0)
 	{
 		for (i = 0; i<NZ; i++)
 		{	
@@ -160,8 +160,31 @@ void ini_wave()
 			pb_i[i] = sin(z/a[0]);
 			pb_r[i] = sin(z/a[1]);
 		}
+	}*/
+
+
+	w = lamda - ((int)lamda / 2) * 2;
+	printf("%f\n", w);
+	if (w < 1)
+	{
+		for (i = 0; i < NZ; i++)
+		{
+			z = (i - Zmid)*Dz;
+			pb_i[i] = w * sin(z / b[0]) + (1 - w) * cos(z / a[0]);
+			pb_r[i] = w * sin(z / b[1]) + (1 - w) * cos(z / a[1]);
+		}
 	}
-	else 
+	else if (w >= 1)
+	{
+		w = w - 1;
+		for (i = 0; i < NZ; i++)
+		{
+			z = (i - Zmid)*Dz;
+			pb_i[i] = (1 - w) * sin(z / b[0]) + w * cos(z / a[0]);
+			pb_r[i] = (1 - w) * sin(z / b[1]) + w * cos(z / a[1]);
+		}
+	}
+	else
 	{
 		for (i = 0; i<NZ; i++)
 		{
@@ -275,12 +298,10 @@ void wave_func()
 		round = 1;
 		dt = 0.0000001;  /* imaginary time iteration dt may be equal to Dz*Dz */
 		j = 0;
-		w = 0;
-		w = (int) lamda % 2; 
 
 		random_gener();
-
 		ini_wave();
+
 		do{
 			tem_energy = energy; /* record the energy */
 			/* record the wave function */
@@ -326,7 +347,7 @@ void wave_func()
 			/* decide whether to output the temporary results according to the numbeer of rounds */
 			if (round % PRINT == 0)
 			{
-				if (dt <= t*500)
+				if (dt <= t*400)
 					dt += 0.1*t; //As the evolution proceeds, the iteration time is increasing
 				printf("round=%5d	%12.11f	%e	%e  %f\n", round, energy, diff_energy, diff_wavefunc, lamda);
 			}
@@ -337,10 +358,10 @@ void wave_func()
 				break;
 			}
 				
-			if ( fabs(diff_wavefunc - LIMIT) < 1.0e-9)
+			if ( fabs(diff_wavefunc - LIMIT) < 1.0e-8)
 				j++;
 			round++;
-		} while (j != 2000 && diff_wavefunc > LIMIT);
+		} while (j != 10 && diff_wavefunc > LIMIT);
 
 		
 		/* save the results: energy and wave function */
@@ -350,12 +371,12 @@ void wave_func()
 		/* save the results: temporary results */
 		char file[60]; 
 		FILE *fp;		
-		strcpy(file, "result.txt");
+		strcpy(file, "result.dat");
 		fp = fopen(file, "a");
 		fprintf(fp, "NZ=%d, ZLEN=%f, LIMIT=%d, PRINT=%d, BREAK=%d, \n", NZ, ZLEN, LIMIT, PRINT, BREAK);
 		fprintf(fp, "round=%d, j=%d, t=%e, dt=%e,\n", round,j,t,dt);
 		fprintf(fp, " a[0]=%f  a[1]=%f  b[0]=%f  b[1]=%f,  lamda=%f,  g=%f \n", a[0], a[1], b[0], b[1], lamda, g);
-		fprintf(fp, "energy=%e, diff_energy=%e, diff_wavefunc=%e\n\n", energy, diff_energy, diff_wavefunc);
+		fprintf(fp, "energy=%e, diff_energy=%e, diff_wavefunc=%e \n\n", energy, diff_energy, diff_wavefunc);
 		fclose(fp);
 	}
 
